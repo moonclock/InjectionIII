@@ -30,13 +30,13 @@ To use injection, download the app from the App Store and run it. Then, you must
 Xcode 10.2 and later (Swift 5+):
 
 ```Swift
-	#if DEBUG
-	Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/iOSInjection.bundle")?.load()
-	//for tvOS:
-	Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/tvOSInjection.bundle")?.load()
-	//Or for macOS:
-	Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/macOSInjection.bundle")?.load()
-	#endif
+#if DEBUG
+Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/iOSInjection.bundle")?.load()
+//for tvOS:
+Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/tvOSInjection.bundle")?.load()
+//Or for macOS:
+Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/macOSInjection.bundle")?.load()
+#endif
 ```
 
 Adding one of these lines loads a bundle included in the `InjectionIII.app`'s
@@ -47,7 +47,7 @@ you save to disk a Swift (or Objective-C) source in the project, the target app 
 If your project is organised across multiple directories or the project file is not at the root of the source tree you can add other directories to be watched for file changes using the "Add Directory"
 menu item. This list resets when you select a new project.
 
-The file watcher can be disabled & enabled while the app is running using the status bar men.
+The file watcher can be disabled & enabled while the app is running using the status bar menu.
 While the file watcher is disabled you can still force injections through manually using a hotkey `ctrl-=` (remember to save the file first!)
 
 If you inject a subclass of `XCTest` InjectionIII will try running that individual test inside your application provided has been compiled at some time in the past and doesn't require test specific support code.
@@ -57,10 +57,10 @@ injected()` class or instance method.  The instance `@objc
 func injected()` method relies on a "sweep" of all objects in your application to find those of
 the class you have just injected which can be unreliable when using `unowned` instance variables. If you encounter problems, remomve the injected() method and subscribe to the `"INJECTION_BUNDLE_NOTIFICATION"` instead along the lines of the following:
 
-```
-    NotificationCenter.default.addObserver(self,
-        selector: #selector(configureView),
-        name: Notification.Name("INJECTION_BUNDLE_NOTIFICATION"), object: nil)
+```Swift
+NotificationCenter.default.addObserver(self,
+    selector: #selector(configureView),
+    name: Notification.Name("INJECTION_BUNDLE_NOTIFICATION"), object: nil)
 ```
 Included in this release is "Xprobe" which allows you to browse and inspect the objects in
 your application through a web-like interface and execute code against them. Enter text into the search textfield to locate objects quickly by class name.
@@ -103,23 +103,17 @@ get an error starting as follows reporting an undefined symbol:
  Expected in: flat namespace
 in /var/folders/nh/gqmp6jxn4tn2tyhwqdcwcpkc0000gn/T/com.johnholdsworth.InjectionIII/eval101.dylib ***
 ```
-If you encounter this problem, download and build [the unhide project](https://github.com/johnno1962/unhide) then add the following
-as a "Run Script", "Build Phase" to your project after the linking phase:
+This typically becuase you are injecting code that uses a default argument.
+If you encounter this problem, restart your app and you should find this issue
+disappears. If you are using the App Store version of the App, adding
+[unhide](https://github.com/johnno1962/unhide) to your project should
+eventually resolve the problem or better, use one of the recent 
+[github releases](https://github.com/johnno1962/InjectionIII/releases)
+which integrates "unhide".
 
-```
-UNHIDE=~/bin/unhide.sh
-if [ -f $UNHIDE ]; then
-    $UNHIDE
-else
-    echo "File $UNHIDE used for code Injection does not exist. Download and build the https://github.com/johnno1962/unhide project."
-fi
-```
-This changes the visibility of symbols for default argument generators
-and this issue should disappear.
-
-Keep in mind global state -- If the file you're injecting has top level variables e.g. singletons, static or global vars
-they will be reset when you inject the code as the new method implementations will refer to the newly loaded
-object file containing the type.
+Keep in mind global state -- If the file you're injecting has top level variables e.g. singletons,
+static or global vars they will be reset when you inject the code as the new method
+implementations will refer to the newly loaded object file containing the type.
 
 As injection needs to know how to compile Swift files individually it is not compatible with building using
 `Whole Module Optimisation`. A workaround for this is to build with `WMO` switched off so there are
@@ -225,7 +219,7 @@ code changes can be signed properly as you can not turn off library validation.
 
 All this is best done by adding the following as a build phase to your target project:
 
-```
+```shell
 # Type a script or drag a script file from your workspace to insert its path.
 export CODESIGN_ALLOCATE\=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/codesign_allocate
 INJECTION_APP_RESOURCES=/Applications/InjectionIII.app/Contents/Resources
@@ -285,7 +279,7 @@ following to your app's `"Framework Search Paths"` and `"Runpath Search Paths"`
 ```
 Then, you can use something like the following to register the type:
 
-```
+```Swift
 SwiftTrace.makeTraceable(types: [MovieSwift.MovieRow.Props.self])
 ```
 In this case however the `MovieSwift.MovieRow.Props` type from the excellent 
@@ -310,11 +304,9 @@ these would only make a difference if you had a very, very large application bin
 Newer versions of InjectionIII contain a server that allows you to control your development device from your desktop once the service has been started. The UI allows you to record and replay macros of UI actions then verify the device screen against snapshots for end-to-end testing.
 
 To use, import the Swift Package `https://github.com/johnno1962/Remote.git`
-and call `RemoteCapture.start("hostname")` where hostname is a space
-separated list of hostnames or IP addreses.
-
-When InjectionIII is running, select the "Remote/Start Server" menu item to start the
-server and then run your app. It should connect to the server which will pop up a
+and it should connect automatically to your desktop provided you have selected the 
+"Remote Control/Start Server" menu item in InjectionIII to start it's server.
+Your app should connect to this server when you next run it and will pop up a
 window showing the device display and accepting tap events. Events can be
 saved as `macros` and replayed. If you include a snapshot in a macro this will
 be compared against the device display (within a tolerance) when you replay
@@ -332,7 +324,8 @@ classes that inherit from NSObject. There is a generic form which has the follow
 
 ```Swift
 extension NSObject {
-	public func eval<T>(_ expression: String, type: T.Type) -> T {
+    public func eval<T>(_ expression: String, type: T.Type) -> T
+}
 ```
 
 This takes a Swift expression as a String and returns an entity of the type specified.
@@ -340,21 +333,21 @@ There is also a shorthand function for expressions of type String which accepts 
 contents of the String literal as it's argument:
 
 ```Swift
-	public func swiftEvalString(contents: String) -> String {
-	    return eval("\"" + expression + "\"", String.self)
-	}
+public func swiftEvalString(contents: String) -> String {
+    return eval("\"" + expression + "\"", String.self)
+}
 ```
 
 An example of how it is used can be found in the EvalApp example.
 
 ```Swift
-    @IBAction func performEval(_: Any) {
-        textView.string = swiftEvalString(contents: textField.stringValue)
-    }
+@IBAction func performEval(_: Any) {
+    textView.string = swiftEvalString(contents: textField.stringValue)
+}
 
-    @IBAction func closureEval(_: Any) {
-        _ = swiftEval(code: closureText.stringValue+"()")
-    }
+@IBAction func closureEval(_: Any) {
+    _ = swiftEval(code: closureText.stringValue+"()")
+}
 ```
 
 The code works by adding an extension to your class source containing the expression.
@@ -386,4 +379,4 @@ store edge paths so they can be coloured (line 66 and 303) in "canviz-0.1/canviz
 It also includes [CodeMirror](http://codemirror.net/) JavaScript editor
 for the code to be evaluated using injection under an MIT license.
 
-$Date: 2021/03/18 $
+$Date: 2021/04/29 $
