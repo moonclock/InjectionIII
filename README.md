@@ -14,14 +14,41 @@ need to download the app, just add this project to yours and add a short
 
 This README includes descriptions of some newer features that are only available in more recent
 releases of the InjectionIII.app [available on github](https://github.com/johnno1962/InjectionIII/releases).
-You will need to use one of these releases for Apple Silicon or if you have upgraded to Big Sur
+You may need to use one of these releases for Apple Silicon or if you have upgraded to Big Sur
 due to changes to macOS codesigning that affect the sandboxed App Store version of the app.
 
 ![Icon](http://johnholdsworth.com/InjectionUI.gif)
 
-`InjectionIII.app` needs an Xcode 10.2 or greater at the path `/Applications/Xcode.app` , works for `Swift` and `Objective-C` and can be used alongside [AppCode](https://www.jetbrains.com/help/objc/create-a-swiftui-application.html) or by using the [AppCode Plugin](https://github.com/johnno1962/InjectionIII/blob/master/AppCodePlugin/INSTALL.md).
+`InjectionIII.app` needs an Xcode 10.2 or greater at the path `/Applications/Xcode.app` , works for `Swift` and `Objective-C` and can be used alongside [AppCode](https://www.jetbrains.com/help/objc/create-a-swiftui-application.html) or by using the [AppCode Plugin](https://github.com/johnno1962/InjectionIII/blob/master/AppCodePlugin/INSTALL.md)
+instead.
 
 To understand how InjectionIII works and the techniques it uses consult the book [Swift Secrets](http://books.apple.com/us/book/id1551005489).
+
+### Managing Expectations
+
+By rights, InjectionIII shouldn't work and this seems to be a common perception for the
+sceptics out there who haven't actually tried it and yet it does. It relies on documented 
+features of Apple's dynamic linker which have proven to be reliable for a year now. That 
+said,  you can't just inject _any_ source file. For example, it's best not to try to inject a
+file containing a protocol definition. Keep in mind though the worst case is that your
+application might crash during debugging and you'll have to restart it as you would have 
+had to anyway. Gaining trust in the changes you can inject builds with experience and
+with it, the amount of time you save. The injectionIII bundle is only used during development 
+in the simulator and cannot affect your application when it is deployed into production.
+
+To reason about your app while you are using injection, separate  data and program
+in your mind. You can't inject changes to the way data is laid out in memory by adding 
+properties or methods on the fly but apart from that exchanging  method implementations
+is performed on the main thread and perfectly reliable. A common question for new
+users is: I injected a new version of the code, why can't I see the changes on the screen?
+To have effect, the new code needs to be actually executed and it's up to the user to use 
+either an `@objc func injected()` method or a notification to reload a view controller 
+or refresh a table view to see changes or perform some user action that forces a redisplay.
+
+If you try InjectionIII and you think it doesn't work, please, please file an issue so we can
+either explain what is going on, improve the documentation or try to resolve the particular 
+edge case you have encountered. The project is quite mature now and provided you're 
+holding it correctly and don't ask too much of it, it should "just work".
 
 ### Getting Started
 
@@ -40,7 +67,7 @@ Bundle(path: "/Applications/InjectionIII.app/Contents/Resources/macOSInjection.b
 ```
 
 Adding one of these lines loads a bundle included in the `InjectionIII.app`'s
-resources which connects over a localhost socket to the InjectionII app which runs on the task bar.
+resources which connects over a localhost socket to the InjectionIII app which runs on the task bar.
 Once injection is connected, you'll be prompted to select the directory containing the project file for the app you wish to inject. This starts a `file watcher` for that directory inside the Mac app so whenever
 you save to disk a Swift (or Objective-C) source in the project, the target app is messaged through the socket to compile, link, dynamically load and update the implementation of methods in the file being injected. 
 
@@ -84,7 +111,7 @@ a class or struct in the course of an injection i.e. add or rearrange properties
 non-final class or your app will likely crash. Also, see the notes below for injecting `SwiftUI` views and how they require
 type erasure.
 
-If you have a complex project including Objective-C or C dependancies, using the `-interposable` flag may provoke the following error on linking:
+If you have a complex project including Objective-C or C dependancies, using the `-interposable` flag may provoke undefined symbols or the following error on linking:
 
 ```
 Can't find ordinal for imported symbol for architecture x86_64
@@ -94,6 +121,13 @@ If this is the case, add the following additional "Other linker Flags" and it sh
 ```
 -Xlinker -undefined -Xlinker dynamic_lookup
 ```
+
+If you have a project using extensive bridging & Objective-C it's recommended to use
+one of the [binary github releases](https://github.com/johnno1962/InjectionIII/releases)
+that have the sandbox turned off. This is beacuse the App Store version operates in 
+a case sensitive file system which can create problems if filenames in your project do 
+not have the identical casing as the actual filename on disk.
+
 If you inject code which calls a function with default arguments you may
 get an error starting as follows reporting an undefined symbol:
 
@@ -105,15 +139,12 @@ in /var/folders/nh/gqmp6jxn4tn2tyhwqdcwcpkc0000gn/T/com.johnholdsworth.Injection
 ```
 This typically becuase you are injecting code that uses a default argument.
 If you encounter this problem, restart your app and you should find this issue
-disappears. If you are using the App Store version of the App, adding
-[unhide](https://github.com/johnno1962/unhide) to your project should
-eventually resolve the problem or better, use one of the recent 
-[github releases](https://github.com/johnno1962/InjectionIII/releases)
-which integrates "unhide".
+disappears due to a background task [unhide](https://github.com/johnno1962/unhide)
+which is integrated into InjectionIII.
 
 Keep in mind global state -- If the file you're injecting has top level variables e.g. singletons,
 static or global vars they will be reset when you inject the code as the new method
-implementations will refer to the newly loaded object file containing the type.
+implementations will refer to the newly loaded object file containing the variable.
 
 As injection needs to know how to compile Swift files individually it is not compatible with building using
 `Whole Module Optimisation`. A workaround for this is to build with `WMO` switched off so there are
@@ -303,7 +334,7 @@ these would only make a difference if you had a very, very large application bin
 
 Newer versions of InjectionIII contain a server that allows you to control your development device from your desktop once the service has been started. The UI allows you to record and replay macros of UI actions then verify the device screen against snapshots for end-to-end testing.
 
-To use, import the Swift Package `https://github.com/johnno1962/Remote.git`
+To use, import the Swift Package [https://github.com/johnno1962/Remote.git](https://github.com/johnno1962/Remote.git)
 and it should connect automatically to your desktop provided you have selected the 
 "Remote Control/Start Server" menu item in InjectionIII to start it's server.
 Your app should connect to this server when you next run it and will pop up a
@@ -379,4 +410,4 @@ store edge paths so they can be coloured (line 66 and 303) in "canviz-0.1/canviz
 It also includes [CodeMirror](http://codemirror.net/) JavaScript editor
 for the code to be evaluated using injection under an MIT license.
 
-$Date: 2021/04/29 $
+$Date: 2021/06/06 $
